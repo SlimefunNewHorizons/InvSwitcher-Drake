@@ -26,6 +26,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -82,6 +83,9 @@ class PlayerListenerTest {
      */
     @BeforeEach
     void setUp() {
+        // A server must exist before BentoBox's Util is first initialised (its static init reads the
+        // Minecraft version); otherwise the class fails to load for every later test in this JVM.
+        MockBukkit.mock();
         // BentoBox static mock (needed for logDebug calls in PlayerListener)
         BentoBox bbPlugin = mock(BentoBox.class);
         mockedBentoBox = Mockito.mockStatic(BentoBox.class);
@@ -109,6 +113,7 @@ class PlayerListenerTest {
         if (mockedBentoBox != null) {
             mockedBentoBox.close();
         }
+        MockBukkit.unmock();
     }
 
     /**
@@ -136,6 +141,9 @@ class PlayerListenerTest {
     @Test
     void testOnWorldEnterDifferentWorld() {
         PlayerChangedWorldEvent event = new PlayerChangedWorldEvent(player, notWorld);
+        // Different storage keys, otherwise the listener treats both worlds as one group
+        when(store.getStorageKey(player, world)).thenReturn("world");
+        when(store.getStorageKey(player, notWorld)).thenReturn("notWorld");
         // Mock the static method
         try (MockedStatic<Util> mockedBukkit = mockStatic(Util.class, Mockito.RETURNS_MOCKS)) {
             when(Util.sameWorld(world, world)).thenReturn(true);
@@ -179,6 +187,33 @@ class PlayerListenerTest {
         pl.onPlayerJoin(event);
         // No storage yet
         verify(store).getInventory(any(), any());
+    }
+
+    /**
+     * Restart rollback: when the stored copy is older than the player file, login must keep the
+     * player's real state and re-save it instead of loading the stale copy over it.
+     */
+    @Test
+    void testOnPlayerJoinStaleStorageKeepsPlayerState() {
+        when(store.isWorldStored(player, world)).thenReturn(true);
+        when(store.isStoredCopyStale(player)).thenReturn(true);
+        PlayerJoinEvent event = new PlayerJoinEvent(player, "");
+        pl.onPlayerJoin(event);
+        verify(store, never()).getInventory(any(), any());
+        verify(store).resyncStoredCopy(player, world);
+    }
+
+    /**
+     * A fresh stored copy is still loaded on login.
+     */
+    @Test
+    void testOnPlayerJoinFreshStorageLoads() {
+        when(store.isWorldStored(player, world)).thenReturn(true);
+        when(store.isStoredCopyStale(player)).thenReturn(false);
+        PlayerJoinEvent event = new PlayerJoinEvent(player, "");
+        pl.onPlayerJoin(event);
+        verify(store).getInventory(player, world);
+        verify(store, never()).resyncStoredCopy(any(), any());
     }
 
     /**

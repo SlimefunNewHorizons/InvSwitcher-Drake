@@ -73,6 +73,15 @@ public class InventoryStorage implements DataObject {
     private boolean imported;
 
     /**
+     * Epoch millis of the last save issued for this object. The same stamp is written to the
+     * player's persistent data, which travels with the vanilla player file, so a login can tell
+     * whether this stored copy missed a save (see {@code Store#isStoredCopyStale}).
+     * Zero for objects saved before the stamp existed.
+     */
+    @Expose
+    private long savedAt;
+
+    /**
      * Map of world name to player location.
      */
     @Expose
@@ -328,6 +337,20 @@ public class InventoryStorage implements DataObject {
      */
     public void setImported(boolean imported) {
         this.imported = imported;
+    }
+
+    /**
+     * @return epoch millis of the last save issued for this object, or 0 if never stamped
+     */
+    public long getSavedAt() {
+        return savedAt;
+    }
+
+    /**
+     * @param savedAt epoch millis of the save being issued
+     */
+    public void setSavedAt(long savedAt) {
+        this.savedAt = savedAt;
     }
 
     /**

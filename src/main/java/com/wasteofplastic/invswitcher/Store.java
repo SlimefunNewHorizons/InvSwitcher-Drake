@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Registry;
 import org.bukkit.Statistic;
@@ -51,6 +52,8 @@ import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 import com.wasteofplastic.invswitcher.dataobjects.InventoryStorage;
 
@@ -68,6 +71,11 @@ public class Store {
     private static final CharSequence THE_END = "_the_end";
     private static final CharSequence NETHER = "_nether";
     public static final String DEFAULT_WORLD_KEY = "default";
+    /**
+     * Player persistent-data key holding the stamp of the last save issued for that player.
+     * It is saved with the vanilla player file, independently of the BentoBox database.
+     */
+    static final NamespacedKey SAVED_AT_KEY = new NamespacedKey("invswitcher", "saved_at");
     private final Database<InventoryStorage> database;
     private final Map<UUID, InventoryStorage> cache;
     private final Map<UUID, String> currentKey;
@@ -432,6 +440,10 @@ public class Store {
         // Persist the key so economy transactions for this player can be routed to the
         // world they were last in, even after they log out.
         store.setLastKey(islandKey);
+        // Stamp the stored copy and the player file alike, so a lost database write is detectable
+        long savedAt = System.currentTimeMillis();
+        store.setSavedAt(savedAt);
+        stampPlayer(player, savedAt);
         // Each option saves to the island key or the world key based on its island sub-setting
         Settings settings = addon.getSettings();
         if (settings.isInventory()) {
@@ -483,20 +495,19 @@ public class Store {
     }
 
     /**
-     * Writes the store to the database, synchronously when the server is shutting down.
+     * Writes the store to the database.
      * <p>
-     * Saves are normally asynchronous, but a shutdown save must not be. BentoBox closes its
-     * database immediately after addons are disabled, and players are only kicked afterwards, so an
-     * asynchronous write issued from {@link #saveOnShutdown()} loses the race and is silently
-     * dropped — and the {@code PlayerQuitEvent} that would otherwise save them fires after the
-     * database is already closed.
+     * A shutdown save is meant to be synchronous, but it is not guaranteed to land: BentoBox's
+     * {@link Database#saveObject} is itself asynchronous, and its JSON handler queues the write while
+     * BentoBox is still enabled — which it is while addons are being disabled. The queue is then
+     * abandoned when BentoBox closes its database, and the {@code PlayerQuitEvent} that would
+     * otherwise save the player fires after that. Paper still saves the player file, so the
+     * database copy is left older than the player's real state.
      * <p>
-     * The effect was that everything a player did since their last world change went unsaved when
-     * the server stopped. Because {@code PlayerListener.onPlayerJoin} re-applies the stored
-     * inventory on login, the stale snapshot then overwrote the player's real inventory and they
-     * were rolled back to their last world change.
+     * That is why every save is stamped (see {@link #isStoredCopyStale}): on the next login the
+     * stale copy is detected and not re-applied over the player's real inventory.
      * @param store - the store to write
-     * @param shutdown - true if this is a shutdown save, which must be synchronous
+     * @param shutdown - true if this is a shutdown save
      */
     private void persist(InventoryStorage store, boolean shutdown) {
         if (shutdown) {
@@ -713,6 +724,48 @@ public class Store {
                 amount = 0;
             }
         }
+    }
+
+    /**
+     * Writes the save stamp to the player's persistent data, which is saved with the player file.
+     * @param player - player
+     * @param savedAt - stamp of the save being issued
+     */
+    private void stampPlayer(Player player, long savedAt) {
+        PersistentDataContainer pdc = player.getPersistentDataContainer();
+        if (pdc != null) {
+            pdc.set(SAVED_AT_KEY, PersistentDataType.LONG, savedAt);
+        }
+    }
+
+    /**
+     * Checks whether the stored copy for this player missed a save that the player file received,
+     * e.g. a shutdown save dropped by BentoBox's database. Re-applying such a copy on login would
+     * roll the player back to their previous save, so it must not be loaded.
+     * <p>
+     * Players without a stamp (never saved since the stamp was introduced) are never stale, and a
+     * player file older than the stored copy (e.g. after a crash) keeps loading the stored copy.
+     * @param player - player
+     * @return true if the player file is newer than the stored copy
+     */
+    public boolean isStoredCopyStale(Player player) {
+        PersistentDataContainer pdc = player.getPersistentDataContainer();
+        if (pdc == null) {
+            return false;
+        }
+        Long stamp = pdc.get(SAVED_AT_KEY, PersistentDataType.LONG);
+        return stamp != null && stamp > getInv(player).getSavedAt();
+    }
+
+    /**
+     * Rewrites the stored copy for the player's current world from the player's real state,
+     * without touching the player. Used on login when the stored copy is stale.
+     * @param player - player
+     * @param world - world the player is in
+     */
+    public void resyncStoredCopy(Player player, World world) {
+        currentKey.put(player.getUniqueId(), getStorageKey(player, world));
+        storeAndSave(player, world, false);
     }
 
     /**

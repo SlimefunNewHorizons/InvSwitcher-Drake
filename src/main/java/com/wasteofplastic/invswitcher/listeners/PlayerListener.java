@@ -136,8 +136,18 @@ public class PlayerListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled=true)
     public void onPlayerJoin(final PlayerJoinEvent event) {
-        if (addon.getWorlds().contains(event.getPlayer().getWorld()) && addon.getStore().isWorldStored(event.getPlayer(), event.getPlayer().getWorld())) {
-            addon.getStore().getInventory(event.getPlayer(), event.getPlayer().getWorld());
+        Player player = event.getPlayer();
+        World world = player.getWorld();
+        if (addon.getWorlds().contains(world) && addon.getStore().isWorldStored(player, world)) {
+            if (addon.getStore().isStoredCopyStale(player)) {
+                // The last save (typically the shutdown one) never reached the database, so the stored
+                // copy is older than the player's real state. Loading it would roll the player back.
+                addon.logWarning("Stored data for " + player.getName() + " in " + world.getName()
+                        + " is older than the player file; keeping the player's current state and re-saving it.");
+                addon.getStore().resyncStoredCopy(player, world);
+                return;
+            }
+            addon.getStore().getInventory(player, world);
         }
     }
 

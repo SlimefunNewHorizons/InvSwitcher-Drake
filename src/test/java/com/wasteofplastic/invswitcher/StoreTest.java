@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -43,6 +44,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.persistence.PersistentDataType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,6 +66,7 @@ import world.bentobox.bentobox.managers.IslandWorldManager;
 import world.bentobox.bentobox.managers.IslandsManager;
 import world.bentobox.bentobox.util.Util;
 import org.mockbukkit.mockbukkit.MockBukkit;
+import org.mockbukkit.mockbukkit.persistence.PersistentDataContainerMock;
 
 /**
  * @author tastybento
@@ -194,6 +197,63 @@ class StoreTest {
             s.storeInventory(player, world);
         }
         assertTrue(s.isWorldStored(player, world));
+    }
+
+    /**
+     * A save stamps both the stored copy and the player file, so a fresh copy is not stale.
+     */
+    @Test
+    void testStoredCopyNotStaleAfterSave() {
+        PersistentDataContainerMock pdc = new PersistentDataContainerMock();
+        when(player.getPersistentDataContainer()).thenReturn(pdc);
+        sets.setStatistics(false);
+        try (MockedStatic<Bukkit> mockedBukkit = mockStatic(Bukkit.class, Mockito.RETURNS_MOCKS)) {
+            s.storeInventory(player, world);
+        }
+        assertNotNull(pdc.get(Store.SAVED_AT_KEY, PersistentDataType.LONG));
+        assertFalse(s.isStoredCopyStale(player));
+    }
+
+    /**
+     * Restart rollback: the shutdown save reached the player file but not the database. The stored
+     * copy must be reported stale, and re-syncing it from the player clears the condition.
+     */
+    @Test
+    void testStoredCopyStaleWhenPlayerFileIsNewer() {
+        PersistentDataContainerMock pdc = new PersistentDataContainerMock();
+        when(player.getPersistentDataContainer()).thenReturn(pdc);
+        sets.setStatistics(false);
+        try (MockedStatic<Bukkit> mockedBukkit = mockStatic(Bukkit.class, Mockito.RETURNS_MOCKS)) {
+            s.storeInventory(player, world);
+        }
+        // A later save stamped the player file but its database write was dropped
+        pdc.set(Store.SAVED_AT_KEY, PersistentDataType.LONG, System.currentTimeMillis() + 60_000L);
+        assertTrue(s.isStoredCopyStale(player));
+
+        clearInvocations(player);
+        try (MockedStatic<Bukkit> mockedBukkit = mockStatic(Bukkit.class, Mockito.RETURNS_MOCKS)) {
+            s.resyncStoredCopy(player, world);
+        }
+        assertFalse(s.isStoredCopyStale(player));
+        // Re-syncing writes the stored copy only; it must not clear or reload the player
+        verify(player, never()).setTotalExperience(0);
+    }
+
+    /**
+     * Players never stamped (data from before the stamp existed) and player files older than the
+     * stored copy (e.g. after a crash) keep loading the stored copy as before.
+     */
+    @Test
+    void testStoredCopyNotStaleWithoutNewerStamp() {
+        PersistentDataContainerMock pdc = new PersistentDataContainerMock();
+        when(player.getPersistentDataContainer()).thenReturn(pdc);
+        assertFalse(s.isStoredCopyStale(player));
+        sets.setStatistics(false);
+        try (MockedStatic<Bukkit> mockedBukkit = mockStatic(Bukkit.class, Mockito.RETURNS_MOCKS)) {
+            s.storeInventory(player, world);
+        }
+        pdc.set(Store.SAVED_AT_KEY, PersistentDataType.LONG, 1L);
+        assertFalse(s.isStoredCopyStale(player));
     }
 
     /**
