@@ -33,7 +33,7 @@ public class Settings implements ConfigObject {
     @ConfigEntry(path = "options.ender-chest")
     private boolean enderChest = true;
     @ConfigEntry(path = "options.statistics")
-    private boolean statistics = true;
+    private boolean statistics = false;
     @ConfigComment("Per-world money. Off by default. Requires the Vault plugin. A separate economy plugin")
     @ConfigComment("(e.g. EssentialsX) is optional: InvSwitcher can be the only economy. When enabled,")
     @ConfigComment("InvSwitcher registers itself as the Vault economy and keeps a separate balance for each")

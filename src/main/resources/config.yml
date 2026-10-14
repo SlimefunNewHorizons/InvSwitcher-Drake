@@ -16,7 +16,9 @@ options:
   gamemode: true
   experience: true
   ender-chest: true
-  statistics: true
+  # Disabled by default: Paper statistics are global player data. Enabling
+  # per-world switching resets every statistic before restoring its saved copy.
+  statistics: false
   # Per-world money. Off by default. Requires the Vault plugin. A separate economy plugin
   # (e.g. EssentialsX) is optional: InvSwitcher can be the only economy. When enabled,
   # InvSwitcher registers itself as the Vault economy and keeps a separate balance for each
