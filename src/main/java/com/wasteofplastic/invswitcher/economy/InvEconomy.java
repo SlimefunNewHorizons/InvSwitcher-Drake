@@ -37,6 +37,7 @@ public class InvEconomy implements Economy {
     private static final String NEGATIVE_WITHDRAW = "Cannot withdraw a negative amount";
     private static final String NEGATIVE_SET = "Cannot set a negative balance";
     private static final String INSUFFICIENT_FUNDS = "Insufficient funds";
+    private static final String NO_ECONOMY = "There is no economy here";
     // Debug message fragments, factored out to avoid duplicated string literals.
     private static final String DBG_KEY = " key=";
     private static final String DBG_AMOUNT = " amount=";
@@ -115,7 +116,8 @@ public class InvEconomy implements Economy {
                 }
             }
             delegate = found;
-            delegateResolved = true;
+            // Vault lookups can arrive before the previous economy plugin enables: retry later
+            delegateResolved = found != null;
             debug(found != null
                     ? "delegating unmanaged-world transactions to " + found.getName()
                     : "no other economy found; InvSwitcher is the only economy.");
@@ -221,7 +223,15 @@ public class InvEconomy implements Economy {
         return settings.getStartingBalance();
     }
 
+    /** True while there is no store yet (early startup) or for keys configured with no economy. */
+    private boolean noEconomy(String key) {
+        return store() == null || settings().getNoEconomyKeys().contains(key);
+    }
+
     private double readSelf(OfflinePlayer player, String key) {
+        if (noEconomy(key)) {
+            return 0D;
+        }
         InventoryStorage s = store().getStorageObject(player.getUniqueId());
         boolean existed = s.hasMoney(key);
         double balance = ensureBalance(player, s, key);
@@ -232,6 +242,9 @@ public class InvEconomy implements Economy {
     }
 
     private EconomyResponse depositSelf(OfflinePlayer player, String key, double amount) {
+        if (noEconomy(key)) {
+            return new EconomyResponse(0, 0, ResponseType.FAILURE, NO_ECONOMY);
+        }
         if (amount < 0) {
             return new EconomyResponse(0, readSelf(player, key), ResponseType.FAILURE, NEGATIVE_DEPOSIT);
         }
@@ -243,6 +256,9 @@ public class InvEconomy implements Economy {
     }
 
     private EconomyResponse setSelf(OfflinePlayer player, String key, double amount) {
+        if (noEconomy(key)) {
+            return new EconomyResponse(0, 0, ResponseType.FAILURE, NO_ECONOMY);
+        }
         if (amount < 0) {
             return new EconomyResponse(0, readSelf(player, key), ResponseType.FAILURE, NEGATIVE_SET);
         }
@@ -255,6 +271,9 @@ public class InvEconomy implements Economy {
     }
 
     private EconomyResponse withdrawSelf(OfflinePlayer player, String key, double amount) {
+        if (noEconomy(key)) {
+            return new EconomyResponse(0, 0, ResponseType.FAILURE, NO_ECONOMY);
+        }
         if (amount < 0) {
             return new EconomyResponse(0, readSelf(player, key), ResponseType.FAILURE, NEGATIVE_WITHDRAW);
         }

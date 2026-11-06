@@ -286,4 +286,21 @@ class InvEconomyTest {
         economy.depositPlayer(player, 5.0);
         verify(delegate).depositPlayer(player, 5.0);
     }
+
+    @Test
+    void noEconomyKeyHasNoMoneyAndRejectsTransactions() {
+        sets.getNoEconomyKeys().add(world.getName());
+        org.junit.jupiter.api.Assertions.assertEquals(0D, economy.getBalance(player));
+        org.junit.jupiter.api.Assertions.assertFalse(economy.depositPlayer(player, 100D).transactionSuccess());
+        org.junit.jupiter.api.Assertions.assertFalse(economy.withdrawPlayer(player, 1D).transactionSuccess());
+    }
+
+    @Test
+    void groupedWorldSharesTheModalityWallet() {
+        World dimension = mock(World.class);
+        when(dimension.getName()).thenReturn("galactifun_space");
+        bentoboxWorlds.add(dimension);
+        when(addon.getWorldGroup("galactifun_space")).thenReturn("grouped");
+        org.junit.jupiter.api.Assertions.assertEquals("grouped", store.getMoneyKey(player, dimension));
+    }
 }

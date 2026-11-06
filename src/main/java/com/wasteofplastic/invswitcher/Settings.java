@@ -1,5 +1,7 @@
 package com.wasteofplastic.invswitcher;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -17,6 +19,10 @@ public class Settings implements ConfigObject {
     private Set<String> worlds = new HashSet<>();
 
     @ConfigComment("")
+    @ConfigComment("Extra worlds that share a modality's data, as regex=key (key is the overworld name).")
+    @ConfigEntry(path = "world-groups")
+    private List<String> worldGroups = new ArrayList<>();
+
     @ConfigComment("Per-world settings. Gamemode means Survivial, Creative, etc.")
     @ConfigEntry(path = "options.inventory")
     private boolean inventory = true;
@@ -90,6 +96,9 @@ public class Settings implements ConfigObject {
     @ConfigComment("plugin (e.g. EssentialsX). Disable to make InvSwitcher the sole economy for every world.")
     @ConfigEntry(path = "economy.delegate-unmanaged-worlds")
     private boolean delegateUnmanagedWorlds = true;
+    @ConfigComment("Money keys with no real economy: balance is always 0 and transactions fail.")
+    @ConfigEntry(path = "economy.no-economy-keys")
+    private List<String> noEconomyKeys = new ArrayList<>();
     @ConfigComment("Log every economy transaction (deposit/withdraw/balance) to the console for")
     @ConfigComment("troubleshooting. Verbose - only enable while diagnosing a problem.")
     @ConfigEntry(path = "economy.debug")
@@ -319,6 +328,18 @@ public class Settings implements ConfigObject {
     }
     public boolean isEconomyDebug() {
         return economyDebug;
+    }
+    public List<String> getNoEconomyKeys() {
+        return noEconomyKeys;
+    }
+    public void setNoEconomyKeys(List<String> noEconomyKeys) {
+        this.noEconomyKeys = noEconomyKeys;
+    }
+    public List<String> getWorldGroups() {
+        return worldGroups;
+    }
+    public void setWorldGroups(List<String> worldGroups) {
+        this.worldGroups = worldGroups;
     }
     public void setEconomyDebug(boolean economyDebug) {
         this.economyDebug = economyDebug;

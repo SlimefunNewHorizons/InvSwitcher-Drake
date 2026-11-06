@@ -1,14 +1,19 @@
 package com.wasteofplastic.invswitcher.listeners;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -35,6 +40,8 @@ import world.bentobox.bentobox.util.Util;
  */
 public class PlayerListener implements Listener {
 
+    private static final Set<String> PAY_COMMANDS = Set.of("pay", "epay");
+
     private final InvSwitcher addon;
 
     /**
@@ -42,6 +49,48 @@ public class PlayerListener implements Listener {
      */
     public PlayerListener(InvSwitcher addon) {
         this.addon = addon;
+    }
+
+    /**
+     * Picks up grouped worlds that load after startup (dynamic Slimefun dimensions).
+     * @param event - event
+     */
+    @EventHandler
+    public void onWorldLoad(WorldLoadEvent event) {
+        if (addon.getWorldGroup(event.getWorld().getName()) != null) {
+            addon.getWorlds().add(event.getWorld());
+        }
+    }
+
+    /**
+     * EssentialsX pays into the target's current wallet, so a payment to someone in another
+     * modality would carry money across modalities. Only same-modality payments go through.
+     * @param event - event
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onPayCommand(PlayerCommandPreprocessEvent event) {
+        if (!addon.getSettings().isMoney()) {
+            return;
+        }
+        String[] parts = event.getMessage().trim().split("\\s+");
+        String label = parts[0].substring(1).toLowerCase(Locale.ROOT).replace("essentials:", "");
+        if (parts.length < 2 || !PAY_COMMANDS.contains(label)) {
+            return;
+        }
+        Player sender = event.getPlayer();
+        Player online = Bukkit.getPlayerExact(parts[1]);
+        OfflinePlayer target = online != null ? online : Bukkit.getOfflinePlayerIfCached(parts[1]);
+        boolean everyone = parts[1].startsWith("*");
+        if (target == null && !everyone) {
+            return;
+        }
+        if (everyone || !Objects.equals(addon.getStore().getCurrentMoneyKey(sender),
+                addon.getStore().getCurrentMoneyKey(target))) {
+            event.setCancelled(true);
+            sender.sendMessage(sender.locale().getLanguage().equals("es")
+                    ? "§cSolo puedes pagar a jugadores de tu misma modalidad."
+                    : "§cYou can only pay players in your own game mode.");
+        }
     }
 
     /**

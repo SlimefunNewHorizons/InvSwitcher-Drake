@@ -138,7 +138,7 @@ public class Store {
         }
         String overworldName = getOverworldName(world);
 
-        if (!addon.getSettings().isIslandsActive()) {
+        if (!addon.getSettings().isIslandsActive() || addon.getWorldGroup(world.getName()) != null) {
             return overworldName;
         }
 
@@ -189,6 +189,10 @@ public class Store {
     private String getOverworldName(World world) {
         if (!addon.getWorlds().contains(world)) {
             return DEFAULT_WORLD_KEY;
+        }
+        String group = addon.getWorldGroup(world.getName());
+        if (group != null) {
+            return group;
         }
         return (world.getName().replace(THE_END, "")).replace(NETHER, "");
     }
@@ -1040,6 +1044,10 @@ public class Store {
         String last = getStorageObject(player.getUniqueId()).getLastKey();
         if (last == null || DEFAULT_WORLD_KEY.equals(last)) {
             return null;
+        }
+        // Wallets are per world unless per-island money is on, while the last key can name an island
+        if (!addon.getSettings().isIslandsMoney() && last.contains("/")) {
+            return last.substring(0, last.indexOf('/'));
         }
         return last;
     }

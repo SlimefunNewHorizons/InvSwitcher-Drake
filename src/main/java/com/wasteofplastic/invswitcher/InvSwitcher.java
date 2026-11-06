@@ -2,9 +2,12 @@ package com.wasteofplastic.invswitcher;
 
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
@@ -42,12 +45,33 @@ public class InvSwitcher extends Addon {
 
     private InvEconomy economy;
 
+    private final Map<Pattern, String> worldGroups = new LinkedHashMap<>();
+
     @Override
     public void onLoad() {
         // Save default config.yml
         this.saveDefaultConfig();
         // Load the plugin's config
         this.loadSettings();
+        // Register the economy here, while BentoBox enables at STARTUP: every plugin that caches its
+        // Vault provider in its own onEnable (sBank, CrazyAuctions, EssentialsX's layer...) enables
+        // after this point. onEnable runs on the first server tick, which is too late for them.
+        if (getSettings() != null && getSettings().isMoney() && Bukkit.getPluginManager().getPlugin("Vault") != null) {
+            registerEconomyProvider();
+        }
+    }
+
+    /**
+     * @param worldName - world name
+     * @return the modality key this world is grouped into by world-groups, or null if none
+     */
+    public String getWorldGroup(String worldName) {
+        for (Map.Entry<Pattern, String> rule : worldGroups.entrySet()) {
+            if (rule.getKey().matcher(worldName).matches()) {
+                return rule.getValue();
+            }
+        }
+        return null;
     }
 
     @Override
@@ -81,6 +105,11 @@ public class InvSwitcher extends Addon {
             }
         });
         worlds.addAll(netherEnds);
+        // Worlds of a modality that are not named after it (Slimefun dimensions and so on)
+        Bukkit.getWorlds().stream().filter(w -> getWorldGroup(w.getName()) != null).forEach(w -> {
+            log(w.getName() + " -> " + getWorldGroup(w.getName()));
+            worlds.add(w);
+        });
         // Create the store
         store = new Store(this);
         // Register the listeners
@@ -110,6 +139,9 @@ public class InvSwitcher extends Addon {
                 logError("options.money is enabled but the Vault plugin is not installed - per-world money disabled.");
             } else {
                 registerEconomyProvider();
+                // BentoBox captured its VaultHook before us, so it (and addons that use it, e.g. Bank)
+                // still points at the previous economy. Re-read the now-highest provider.
+                refreshBentoBoxVaultHook();
             }
         }
     }
@@ -125,12 +157,6 @@ public class InvSwitcher extends Addon {
         }
         economy = new InvEconomy(this);
         Bukkit.getServicesManager().register(Economy.class, economy, getPlugin(), ServicePriority.Highest);
-
-        // BentoBox captured its VaultHook during early hook registration, before us, so it (and
-        // addons that use it, e.g. Bank) still points at the previous economy. Re-run the hook so
-        // it re-reads the now-highest provider (us). The VaultHook is a single shared instance held
-        // by those addons, so refreshing it updates them too.
-        refreshBentoBoxVaultHook();
 
         // Dump the current economy provider chain (debug only) so it is clear we win the registration.
         if (getSettings().isEconomyDebug()) {
@@ -242,6 +268,13 @@ public class InvSwitcher extends Addon {
             this.logError("InvSwitcher settings could not load! Addon disabled.");
             this.setState(State.DISABLED);
             return;
+        }
+        worldGroups.clear();
+        for (String rule : this.settings.getWorldGroups()) {
+            int eq = rule.lastIndexOf('=');
+            if (eq > 0) {
+                worldGroups.put(Pattern.compile(rule.substring(0, eq), Pattern.CASE_INSENSITIVE), rule.substring(eq + 1));
+            }
         }
         // Save new version
         this.config.saveConfigObject(settings);
