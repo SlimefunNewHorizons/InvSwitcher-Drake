@@ -93,7 +93,12 @@ public class InvEconomy implements Economy {
             return null;
         }
         String key = s.getCurrentMoneyKey(player);
-        return key == null && noWalletWorlds() && !delegating() ? s.getLastModalityKey(player) : key;
+        if (key != null || delegating() || !noWalletWorlds()) {
+            return key;
+        }
+        // Unmanaged world: only the wallet-less worlds (and players away from the server) use the last modality
+        Player online = player.getPlayer();
+        return online == null || inNoWalletWorld(player) ? s.getLastModalityKey(player) : null;
     }
 
     private boolean noWalletWorlds() {
