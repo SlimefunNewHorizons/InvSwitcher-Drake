@@ -20,6 +20,7 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.entity.Player;
 
 import com.wasteofplastic.invswitcher.InvSwitcher;
+import com.wasteofplastic.invswitcher.Store;
 
 import world.bentobox.bentobox.api.events.island.IslandEnterEvent;
 import world.bentobox.bentobox.api.events.player.PlayerBaseEvent;
@@ -187,6 +188,9 @@ public class PlayerListener implements Listener {
     public void onPlayerJoin(final PlayerJoinEvent event) {
         Player player = event.getPlayer();
         World world = player.getWorld();
+        if (!addon.getWorlds().contains(world)) {
+            addon.getStore().runSwitchCommands(player, Store.DEFAULT_WORLD_KEY);
+        }
         if (addon.getWorlds().contains(world) && addon.getStore().isWorldStored(player, world)) {
             if (addon.getStore().isStoredCopyStale(player)) {
                 // The last save (typically the shutdown one) never reached the database, so the stored

@@ -255,6 +255,7 @@ public class Store {
 
         String islandKey = (island != null) ? getStorageKey(player, world, island) : getStorageKey(player, world);
         String worldKey = getOverworldName(world);
+        runSwitchCommands(player, worldKey);
 
         // Always track the island-level key so future saves and island detection work correctly
         currentKey.put(player.getUniqueId(), islandKey);
@@ -1032,6 +1033,19 @@ public class Store {
             return last;
         }
         return overworldName;
+    }
+
+    /**
+     * Runs the configured console commands for a player entering a modality.
+     * @param player - player
+     * @param key - modality key ("default" for unmanaged worlds)
+     */
+    public void runSwitchCommands(Player player, String key) {
+        for (String c : addon.getSettings().getSwitchCommands()) {
+            String cmd = c.replace("{uuid}", player.getUniqueId().toString()).replace("{name}", player.getName())
+                    .replace("{key}", key);
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
+        }
     }
 
     /** Wallets are per world unless per-island money is on, while a storage key can name an island. */

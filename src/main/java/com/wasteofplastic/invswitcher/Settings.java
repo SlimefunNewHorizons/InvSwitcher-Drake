@@ -103,6 +103,10 @@ public class Settings implements ConfigObject {
     @ConfigComment("there (votes, rewards) goes to the wallet of the player's last game mode.")
     @ConfigEntry(path = "economy.no-economy-worlds")
     private List<String> noEconomyWorlds = new ArrayList<>(List.of("spawnwarps"));
+    @ConfigComment("Console commands run whenever a player enters a modality (or an unmanaged world, key \"default\").")
+    @ConfigComment("Placeholders: {uuid}, {name}, {key} (the modality key). Used to swap per-modality datapack state.")
+    @ConfigEntry(path = "switch-commands")
+    private List<String> switchCommands = new ArrayList<>();
     @ConfigComment("Wallet that receives that money when the player has not played any game mode yet.")
     @ConfigEntry(path = "economy.no-economy-fallback-key")
     private String noEconomyFallbackKey = "world";
@@ -341,6 +345,12 @@ public class Settings implements ConfigObject {
     }
     public void setNoEconomyKeys(List<String> noEconomyKeys) {
         this.noEconomyKeys = noEconomyKeys;
+    }
+    public List<String> getSwitchCommands() {
+        return switchCommands;
+    }
+    public void setSwitchCommands(List<String> switchCommands) {
+        this.switchCommands = switchCommands;
     }
     public List<String> getNoEconomyWorlds() {
         return noEconomyWorlds;
