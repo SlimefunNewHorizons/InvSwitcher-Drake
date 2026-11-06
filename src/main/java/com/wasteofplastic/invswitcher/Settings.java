@@ -99,6 +99,13 @@ public class Settings implements ConfigObject {
     @ConfigComment("Money keys with no real economy: balance is always 0 and transactions fail.")
     @ConfigEntry(path = "economy.no-economy-keys")
     private List<String> noEconomyKeys = new ArrayList<>();
+    @ConfigComment("Worlds with no wallet (the lobby): balance reads 0 and purchases fail, but money earned")
+    @ConfigComment("there (votes, rewards) goes to the wallet of the player's last game mode.")
+    @ConfigEntry(path = "economy.no-economy-worlds")
+    private List<String> noEconomyWorlds = new ArrayList<>(List.of("spawnwarps"));
+    @ConfigComment("Wallet that receives that money when the player has not played any game mode yet.")
+    @ConfigEntry(path = "economy.no-economy-fallback-key")
+    private String noEconomyFallbackKey = "world";
     @ConfigComment("Log every economy transaction (deposit/withdraw/balance) to the console for")
     @ConfigComment("troubleshooting. Verbose - only enable while diagnosing a problem.")
     @ConfigEntry(path = "economy.debug")
@@ -334,6 +341,18 @@ public class Settings implements ConfigObject {
     }
     public void setNoEconomyKeys(List<String> noEconomyKeys) {
         this.noEconomyKeys = noEconomyKeys;
+    }
+    public List<String> getNoEconomyWorlds() {
+        return noEconomyWorlds;
+    }
+    public void setNoEconomyWorlds(List<String> noEconomyWorlds) {
+        this.noEconomyWorlds = noEconomyWorlds;
+    }
+    public String getNoEconomyFallbackKey() {
+        return noEconomyFallbackKey;
+    }
+    public void setNoEconomyFallbackKey(String noEconomyFallbackKey) {
+        this.noEconomyFallbackKey = noEconomyFallbackKey;
     }
     public List<String> getWorldGroups() {
         return worldGroups;

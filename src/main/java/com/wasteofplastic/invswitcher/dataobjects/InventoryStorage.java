@@ -66,6 +66,12 @@ public class InventoryStorage implements DataObject {
     private String lastKey;
 
     /**
+     * Last game-mode wallet the player used; it survives time spent in worlds without a wallet.
+     */
+    @Expose
+    private String lastModality;
+
+    /**
      * Whether this player's pre-existing balance has already been imported from the
      * previous economy provider. Prevents the one-time import from running twice.
      */
@@ -323,6 +329,14 @@ public class InventoryStorage implements DataObject {
      */
     public void setLastKey(String lastKey) {
         this.lastKey = lastKey;
+    }
+
+    public String getLastModality() {
+        return lastModality;
+    }
+
+    public void setLastModality(String lastModality) {
+        this.lastModality = lastModality;
     }
 
     /**

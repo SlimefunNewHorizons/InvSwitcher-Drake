@@ -295,6 +295,44 @@ class InvEconomyTest {
         org.junit.jupiter.api.Assertions.assertFalse(economy.withdrawPlayer(player, 1D).transactionSuccess());
     }
 
+    /** Player standing in the lobby, with no wallet; returns the storage the wallets live in. */
+    private com.wasteofplastic.invswitcher.dataobjects.InventoryStorage standInLobby() {
+        World lobby = mock(World.class);
+        when(lobby.getName()).thenReturn("spawnwarps");
+        when(player.getWorld()).thenReturn(lobby);
+        sets.setDelegateUnmanagedWorlds(false);
+        sets.setNoEconomyWorlds(new java.util.ArrayList<>(java.util.List.of("spawnwarps")));
+        sets.setNoEconomyFallbackKey("survival");
+        var storage = new com.wasteofplastic.invswitcher.dataobjects.InventoryStorage();
+        storage.setUniqueId(playerUUID.toString());
+        Store spy = Mockito.spy(store);
+        Mockito.doReturn(storage).when(spy).getStorageObject(playerUUID);
+        when(addon.getStore()).thenReturn(spy);
+        return storage;
+    }
+
+    @Test
+    void lobbyHasNoWalletAndRoutesDepositsToFallback() {
+        var storage = standInLobby();
+        assertEquals(0D, economy.getBalance(player));
+        assertFalse(economy.has(player, 1D));
+        assertFalse(economy.withdrawPlayer(player, 1D).transactionSuccess());
+        // EssentialsX /eco give: withdraw(balance) and then deposit(balance + amount)
+        assertTrue(economy.withdrawPlayer(player, 0D).transactionSuccess());
+        assertTrue(economy.depositPlayer(player, 100D).transactionSuccess());
+        assertEquals(0D, economy.getBalance(player));
+        assertEquals(sets.getStartingBalance() + 100D, storage.getMoney("survival"));
+    }
+
+    @Test
+    void lobbyDepositGoesToLastModality() {
+        var storage = standInLobby();
+        storage.setLastKey(Store.DEFAULT_WORLD_KEY);
+        storage.setLastModality("clasico");
+        assertTrue(economy.depositPlayer(player, 7D).transactionSuccess());
+        assertEquals(sets.getStartingBalance() + 7D, storage.getMoney("clasico"));
+    }
+
     @Test
     void groupedWorldSharesTheModalityWallet() {
         World dimension = mock(World.class);

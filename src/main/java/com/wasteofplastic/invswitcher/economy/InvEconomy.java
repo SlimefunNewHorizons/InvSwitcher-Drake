@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 
 import com.wasteofplastic.invswitcher.InvSwitcher;
@@ -88,7 +89,21 @@ public class InvEconomy implements Economy {
      */
     private String currentKey(OfflinePlayer player) {
         Store s = store();
-        return s == null ? null : s.getCurrentMoneyKey(player);
+        if (s == null) {
+            return null;
+        }
+        String key = s.getCurrentMoneyKey(player);
+        return key == null && noWalletWorlds() && !delegating() ? s.getLastModalityKey(player) : key;
+    }
+
+    private boolean noWalletWorlds() {
+        return !settings().getNoEconomyWorlds().isEmpty();
+    }
+
+    /** True if the player is standing in a world without a wallet, such as the lobby. */
+    private boolean inNoWalletWorld(OfflinePlayer player) {
+        Player online = player.getPlayer();
+        return online != null && settings().getNoEconomyWorlds().contains(online.getWorld().getName());
     }
 
     /**
@@ -96,7 +111,11 @@ public class InvEconomy implements Economy {
      */
     private String worldKey(OfflinePlayer player, String worldName) {
         Store s = store();
-        return s == null ? null : s.getMoneyKey(player, Bukkit.getWorld(worldName));
+        if (s == null) {
+            return null;
+        }
+        return settings().getNoEconomyWorlds().contains(worldName) ? s.getLastModalityKey(player)
+                : s.getMoneyKey(player, Bukkit.getWorld(worldName));
     }
 
     /**
@@ -288,6 +307,12 @@ public class InvEconomy implements Economy {
         return new EconomyResponse(amount, newBalance, ResponseType.SUCCESS, null);
     }
 
+    /** Withdrawing 0 must succeed: EssentialsX pays with withdraw(balance) + deposit(new balance). */
+    private EconomyResponse noWalletWithdraw(double amount) {
+        return amount == 0 ? new EconomyResponse(0, 0, ResponseType.SUCCESS, null)
+                : new EconomyResponse(0, 0, ResponseType.FAILURE, NO_ECONOMY);
+    }
+
     // ------ ACCOUNT METHODS (OfflinePlayer) ------
 
     @Override
@@ -302,6 +327,9 @@ public class InvEconomy implements Economy {
 
     @Override
     public double getBalance(OfflinePlayer player) {
+        if (inNoWalletWorld(player)) {
+            return 0D;
+        }
         String key = currentKey(player);
         debug("getBalance " + who(player) + DBG_KEY + key + routeSuffix(key, ""));
         if (key == null) {
@@ -312,6 +340,9 @@ public class InvEconomy implements Economy {
 
     @Override
     public double getBalance(OfflinePlayer player, String worldName) {
+        if (settings().getNoEconomyWorlds().contains(worldName)) {
+            return 0D;
+        }
         String key = worldKey(player, worldName);
         if (key == null) {
             return delegating() ? delegate().getBalance(player, worldName) : readSelf(player, Store.DEFAULT_WORLD_KEY);
@@ -331,6 +362,9 @@ public class InvEconomy implements Economy {
 
     @Override
     public EconomyResponse withdrawPlayer(OfflinePlayer player, double amount) {
+        if (inNoWalletWorld(player)) {
+            return noWalletWithdraw(amount);
+        }
         String key = currentKey(player);
         debug("withdrawPlayer " + who(player) + DBG_AMOUNT + amount + DBG_KEY + key + routeSuffix(key, ROUTE_SELF));
         if (key == null) {
@@ -342,6 +376,9 @@ public class InvEconomy implements Economy {
 
     @Override
     public EconomyResponse withdrawPlayer(OfflinePlayer player, String worldName, double amount) {
+        if (settings().getNoEconomyWorlds().contains(worldName)) {
+            return noWalletWithdraw(amount);
+        }
         String key = worldKey(player, worldName);
         debug("withdrawPlayer(world) " + who(player) + " world=" + worldName + DBG_AMOUNT + amount + DBG_KEY + key
                 + routeSuffix(key, ROUTE_SELF));

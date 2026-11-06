@@ -444,6 +444,10 @@ public class Store {
         // Persist the key so economy transactions for this player can be routed to the
         // world they were last in, even after they log out.
         store.setLastKey(islandKey);
+        String modality = stripIsland(islandKey);
+        if (!DEFAULT_WORLD_KEY.equals(modality) && !addon.getSettings().getNoEconomyKeys().contains(modality)) {
+            store.setLastModality(modality);
+        }
         // Stamp the stored copy and the player file alike, so a lost database write is detectable
         long savedAt = System.currentTimeMillis();
         store.setSavedAt(savedAt);
@@ -1028,6 +1032,23 @@ public class Store {
             return last;
         }
         return overworldName;
+    }
+
+    /** Wallets are per world unless per-island money is on, while a storage key can name an island. */
+    private String stripIsland(String key) {
+        return !addon.getSettings().isIslandsMoney() && key.contains("/") ? key.substring(0, key.indexOf('/')) : key;
+    }
+
+    /**
+     * Wallet that takes the money of a player who is in a world without a wallet.
+     * @param player - player (online or offline)
+     * @return the player's last game-mode wallet, or the configured fallback
+     */
+    public String getLastModalityKey(OfflinePlayer player) {
+        InventoryStorage s = getStorageObject(player.getUniqueId());
+        String key = s.getLastModality() != null ? s.getLastModality() : s.getLastKey();
+        return key == null || DEFAULT_WORLD_KEY.equals(key) ? addon.getSettings().getNoEconomyFallbackKey()
+                : stripIsland(key);
     }
 
     /**
