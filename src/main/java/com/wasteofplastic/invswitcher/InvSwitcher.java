@@ -162,6 +162,35 @@ public class InvSwitcher extends Addon {
         if (getSettings().isEconomyDebug()) {
             logEconomyRegistrations();
         }
+        // Vault re-hooks Essentials at Highest as it enables, and equal priorities are won by whoever
+        // registered first. Once every plugin is up (and again later, for late hooks) demote the rest.
+        Bukkit.getScheduler().runTask(getPlugin(), this::claimPrimaryEconomy);
+        Bukkit.getScheduler().runTaskLater(getPlugin(), this::claimPrimaryEconomy, 200L);
+    }
+
+    /**
+     * Makes InvSwitcher the primary Vault economy: every other provider registered above Low is
+     * re-registered at Low, so it stays available as a delegate but no longer answers Vault lookups.
+     */
+    void claimPrimaryEconomy() {
+        if (economy == null) {
+            return;
+        }
+        var sm = Bukkit.getServicesManager();
+        boolean changed = false;
+        for (var reg : new java.util.ArrayList<>(sm.getRegistrations(Economy.class))) {
+            Economy other = reg.getProvider();
+            if (other == economy || reg.getPriority().ordinal() <= ServicePriority.Low.ordinal()) {
+                continue;
+            }
+            sm.unregister(Economy.class, other);
+            sm.register(Economy.class, other, reg.getPlugin(), ServicePriority.Low);
+            changed = true;
+            log("Economy provider '" + other.getName() + "' demoted to Low; InvSwitcher is the primary economy.");
+        }
+        if (changed) {
+            refreshBentoBoxVaultHook();
+        }
     }
 
     /**
