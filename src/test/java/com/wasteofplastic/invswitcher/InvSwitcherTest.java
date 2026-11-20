@@ -1,6 +1,8 @@
 package com.wasteofplastic.invswitcher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -224,6 +226,33 @@ class InvSwitcherTest {
         verify(plugin).logWarning("[InvSwitcher] Did not hook into any worlds - disabling addon!");
         assertEquals(State.DISABLED, addon.getState());
         verify(plugin, never()).log("Hooking into the following worlds:");
+    }
+
+    /**
+     * onReload must not fail before the addon is fully loaded.
+     */
+    @Test
+    void testOnReloadBeforeLoadedIsNoop() {
+        addon.onLoad();
+        addon.onReload();
+        assertTrue(addon.getWorlds().isEmpty());
+    }
+
+    /**
+     * onReload re-resolves the worlds into the same set instance, so holders of it see the change.
+     */
+    @Test
+    void testOnReloadKeepsWorldSetInstance() {
+        try (MockedStatic<Bukkit> mockedBukkit = mockStatic(Bukkit.class, Mockito.RETURNS_MOCKS)) {
+            when(Bukkit.getWorld(anyString())).thenReturn(world);
+            addon.onLoad();
+            addon.getSettings().setWorlds(Set.of("bskyblock-world"));
+            addon.allLoaded();
+            Set<World> before = addon.getWorlds();
+            addon.onReload();
+            assertSame(before, addon.getWorlds());
+            assertFalse(before.isEmpty());
+        }
     }
 
     /**

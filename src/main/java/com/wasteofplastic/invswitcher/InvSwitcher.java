@@ -74,24 +74,25 @@ public class InvSwitcher extends Addon {
         return null;
     }
 
-    @Override
-    public void allLoaded() {
-        // Load worlds
-        worlds = getSettings().getWorlds()
+    /**
+     * Resolves the hooked worlds from the settings: configured worlds, their nethers and ends, and every
+     * world matched by a world-group rule. Updates the set in place so that holders of it see changes.
+     * @return false if no world could be hooked
+     */
+    private boolean resolveWorlds() {
+        Set<World> found = getSettings().getWorlds()
                 .stream()
                 .map(String::toLowerCase)
                 .map(Bukkit::getWorld)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        if (worlds.isEmpty()) {
-            logWarning("Did not hook into any worlds - disabling addon!");
-            this.setState(State.DISABLED);
-            return;
+        if (found.isEmpty()) {
+            return false;
         }
         // Add nethers and ends
         Set<World> netherEnds = new HashSet<>();
         log("Hooking into the following worlds:");
-        worlds.forEach(w -> {
+        found.forEach(w -> {
             log(w.getName());
             World nether = Bukkit.getWorld(w.getName() + "_nether");
             if (nether != null) {
@@ -104,12 +105,40 @@ public class InvSwitcher extends Addon {
                 log(end.getName());
             }
         });
-        worlds.addAll(netherEnds);
+        found.addAll(netherEnds);
         // Worlds of a modality that are not named after it (Slimefun dimensions and so on)
         Bukkit.getWorlds().stream().filter(w -> getWorldGroup(w.getName()) != null).forEach(w -> {
             log(w.getName() + " -> " + getWorldGroup(w.getName()));
-            worlds.add(w);
+            found.add(w);
         });
+        worlds.clear();
+        worlds.addAll(found);
+        return true;
+    }
+
+    /**
+     * Re-reads config.yml and re-resolves the hooked worlds, so that world-groups can be edited while the
+     * server runs (BentoBox rewrites the file on shutdown from memory, which would otherwise discard a
+     * live edit). Triggered by <code>/bbox reload</code>.
+     */
+    @Override
+    public void onReload() {
+        if (store == null) {
+            return; // not fully loaded yet
+        }
+        loadSettings();
+        if (getSettings() != null && !resolveWorlds()) {
+            logWarning("No worlds could be hooked after the reload; keeping the previous list.");
+        }
+    }
+
+    @Override
+    public void allLoaded() {
+        if (!resolveWorlds()) {
+            logWarning("Did not hook into any worlds - disabling addon!");
+            this.setState(State.DISABLED);
+            return;
+        }
         // Create the store
         store = new Store(this);
         // Register the listeners
