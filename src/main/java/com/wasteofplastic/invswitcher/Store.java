@@ -490,8 +490,7 @@ public class Store {
         }
         if (settings.isEnderChest()) {
             String k = settings.isIslandsEnderChest() ? islandKey : worldKey;
-            List<ItemStack> contents = Arrays.asList(player.getEnderChest().getContents());
-            store.setEnderChest(k, contents);
+            store.setEnderChest(k, snapshotEnderChest(player));
         }
         if (settings.isStatistics()) {
             String k = settings.isIslandsStatistics() ? islandKey : worldKey;
@@ -518,6 +517,35 @@ public class Store {
      * @param store - the store to write
      * @param shutdown - true if this is a shutdown save
      */
+    /**
+     * Immediately snapshots and persists the player's current Ender Chest contents for the given world.
+     * Prevents stale-snapshot rollbacks or item duplication when portable Ender Chests (e.g. Slimefun
+     * Ender Backpack) or cross-world transitions interact with stored Ender Chest state.
+     * @param player - player whose Ender Chest was just closed
+     * @param world - current world
+     */
+    public void syncEnderChest(Player player, World world) {
+        Settings settings = addon.getSettings();
+        if (!settings.isEnderChest() || player == null || world == null) {
+            return;
+        }
+        InventoryStorage store = getInv(player);
+        String worldKey = getOverworldName(world);
+        String k = settings.isIslandsEnderChest() ? getStorageKey(player, world) : worldKey;
+        store.setEnderChest(k, snapshotEnderChest(player));
+        store.setSavedAt(System.currentTimeMillis());
+        persist(store, false);
+    }
+
+    private List<ItemStack> snapshotEnderChest(Player player) {
+        ItemStack[] raw = player.getEnderChest().getContents();
+        List<ItemStack> copy = new ArrayList<>(raw.length);
+        for (ItemStack item : raw) {
+            copy.add(item == null ? null : item.clone());
+        }
+        return copy;
+    }
+
     private void persist(InventoryStorage store, boolean shutdown) {
         if (shutdown) {
             database.saveObject(store);

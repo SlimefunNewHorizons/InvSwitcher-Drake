@@ -18,10 +18,14 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -613,6 +617,87 @@ class PlayerListenerTest {
         pl.onPlayerResetMoney(event);
         assertFalse(event.isCancelled());
         verify(store, never()).clearStoredMoneyForWorld(any(), any(), any());
+    }
+
+    // --- Ender Chest Close & Open Container Guard Tests ---
+
+    @Test
+    void testOnEnderChestCloseSyncsManagedWorld() {
+        when(settings.isEnderChest()).thenReturn(true);
+        Inventory inv = mock(Inventory.class);
+        when(inv.getType()).thenReturn(InventoryType.ENDER_CHEST);
+        InventoryView view = mock(InventoryView.class);
+        when(view.getTopInventory()).thenReturn(inv);
+        when(view.getPlayer()).thenReturn(player);
+
+        InventoryCloseEvent event = new InventoryCloseEvent(view);
+        pl.onEnderChestClose(event);
+
+        verify(store).syncEnderChest(player, world);
+    }
+
+    @Test
+    void testOnEnderChestCloseIgnoresNonEnderChest() {
+        when(settings.isEnderChest()).thenReturn(true);
+        Inventory inv = mock(Inventory.class);
+        when(inv.getType()).thenReturn(InventoryType.CHEST);
+        InventoryView view = mock(InventoryView.class);
+        when(view.getTopInventory()).thenReturn(inv);
+        when(view.getPlayer()).thenReturn(player);
+
+        InventoryCloseEvent event = new InventoryCloseEvent(view);
+        pl.onEnderChestClose(event);
+
+        verify(store, never()).syncEnderChest(any(), any());
+    }
+
+    @Test
+    void testOnEnderChestCloseIgnoresWhenDisabledOrUnmanagedWorld() {
+        Inventory inv = mock(Inventory.class);
+        when(inv.getType()).thenReturn(InventoryType.ENDER_CHEST);
+        InventoryView view = mock(InventoryView.class);
+        when(view.getTopInventory()).thenReturn(inv);
+        when(view.getPlayer()).thenReturn(player);
+        InventoryCloseEvent event = new InventoryCloseEvent(view);
+
+        when(settings.isEnderChest()).thenReturn(false);
+        pl.onEnderChestClose(event);
+        verify(store, never()).syncEnderChest(any(), any());
+
+        when(settings.isEnderChest()).thenReturn(true);
+        when(player.getWorld()).thenReturn(notWorld);
+        pl.onEnderChestClose(event);
+        verify(store, never()).syncEnderChest(any(), any());
+    }
+
+    @Test
+    void testCloseOpenContainerOnWorldEnterAndQuit() {
+        Inventory top = mock(Inventory.class);
+        when(top.getType()).thenReturn(InventoryType.ENDER_CHEST);
+        InventoryView openView = mock(InventoryView.class);
+        when(openView.getTopInventory()).thenReturn(top);
+        when(player.getOpenInventory()).thenReturn(openView);
+
+        when(store.getStorageKey(player, world)).thenReturn("world");
+        when(store.getStorageKey(player, notWorld)).thenReturn("notWorld");
+        try (MockedStatic<Util> mockedUtil = mockStatic(Util.class, Mockito.RETURNS_MOCKS)) {
+            when(Util.sameWorld(world, notWorld)).thenReturn(false);
+            pl.onWorldEnter(new PlayerChangedWorldEvent(player, notWorld));
+        }
+        verify(player).closeInventory();
+
+        // Crafting inventory should not trigger closeInventory on quit
+        Mockito.reset(player);
+        when(player.getUniqueId()).thenReturn(playerUUID);
+        when(player.getWorld()).thenReturn(world);
+        Inventory craftingTop = mock(Inventory.class);
+        when(craftingTop.getType()).thenReturn(InventoryType.CRAFTING);
+        InventoryView craftingView = mock(InventoryView.class);
+        when(craftingView.getTopInventory()).thenReturn(craftingTop);
+        when(player.getOpenInventory()).thenReturn(craftingView);
+
+        pl.onPlayerQuit(new PlayerQuitEvent(player, ""));
+        verify(player, never()).closeInventory();
     }
 
 }
