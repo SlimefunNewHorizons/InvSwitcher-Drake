@@ -1,8 +1,8 @@
 > [!WARNING]
-> ### ⚠️ ARCHIVADO / CONSOLIDADO EN DRAKES-SUITES
+> ### ⚠️ ARCHIVADO / CONSOLIDADO EN DRAKES-SUITES (`26.x`)
 > Este repositorio ha sido consolidado de forma definitiva en el monorepo oficial:  
-> 👉 [**Drakes-Suites (Suite 7: DrakesServer)**](https://github.com/SlimefunNewHorizons/Drakes-Suites)  
-> Todo el desarrollo activo, optimizaciones del Ticker Engine, compatibilidad con Paper 1.21.11 y preparación para 26.X se realiza exclusivamente allí.
+> 👉 [**Drakes-Suites v2.0.0-26.X (Suite 7: DrakesServer)**](https://github.com/SlimefunNewHorizons/Drakes-Suites)  
+> Todo el desarrollo activo para Temporada 2 (**Purpur 26.2** / **Java 25**) se realiza exclusivamente allí.
 
 <div align="center">
 
@@ -10,20 +10,19 @@
 
 # ✦ InvSwitcher · DrakesCraft Edition ✦
 
-### Hardened 5-Modality Inventory, EnderChest, Health & XP Isolation Engine for Paper/Purpur 1.21.11
+### Hardened 5-Modality Inventory, EnderChest, Health & XP Isolation Engine for Purpur 26.2 / Paper 1.21.x
 
 [![RepoRanker](https://reporanker.com/badge/SlimefunNewHorizons/InvSwitcher-Drake)](https://reporanker.com/repos/SlimefunNewHorizons/InvSwitcher-Drake)
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-7C4DFF?logo=minecraft&logoColor=white)](https://papermc.io/)
-[![Purpur](https://img.shields.io/badge/Purpur-1.21.11-FFA000?logo=purpur)](https://purpurmc.org/)
+[![Purpur](https://img.shields.io/badge/Purpur-26.2_%2F_1.21.x-FFA000?logo=purpur)](https://purpurmc.org/)
 [![Java](https://img.shields.io/badge/Java-21%2F25-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-GPL--3.0-blue)](./LICENSE)
 [![Zero-Leakage](https://img.shields.io/badge/Isolation-Zero--Leakage_5_Modes-10B981)](https://github.com/SlimefunNewHorizons/InvSwitcher-Drake)
 [![Network](https://img.shields.io/badge/Network-DrakesCraft_Production-00E5FF)](https://web.drakescraft.cl)
 
-**A hardened downstream fork of InvSwitcher for BentoBox on Paper/Purpur 1.21.11, providing airtight cross-modality inventory isolation across DrakesCraft's 5 game modes with zero item smuggling and zero Data Components corruption.**
+**A hardened downstream fork of InvSwitcher for BentoBox on Purpur 26.2 / Paper 1.21.x, providing airtight cross-modality inventory isolation across DrakesCraft's 5 game modes with zero item smuggling and zero Data Components corruption.**
 
 [🌐 Portal Oficial](https://web.drakescraft.cl) ·
-[🎮 Jugar en Vivo](https://web.drakescraft.cl/play) ·
+[🛒 Tienda Oficial](https://drakescraft-v2.tebex.io) ·
 [💬 Discord Oficial](https://discord.gg/rv3vtXZTk7) ·
 [🏛️ Organización GitHub](https://github.com/SlimefunNewHorizons)
 
@@ -31,11 +30,12 @@
 
 ---
 
-> ### 🏰 ¡Únete a la Red Oficial de DrakesCraft!
+> ### 🏰 Comunidad Oficial de DrakesCraft
 >
-> * 🎮 **IP del Servidor (Java & Bedrock):** `play.drakescraft.cl` *(Puerto Java: `25565` | Puerto Bedrock: `19132`)*
-> * 💬 **Discord de la Comunidad:** [discord.gg/drakescraft](https://discord.gg/rv3vtXZTk7)
-> * 🌐 **Sitio Web:** [web.drakescraft.cl](https://web.drakescraft.cl) · 🛒 **Tienda Oficial:** [web.drakescraft.cl/store](https://web.drakescraft.cl/store.html)
+> * 🎮 **IP del Servidor (Java & Bedrock):** `mc.drakescraft.cl` *(Puerto Java: `25565`)*
+> * 💬 **Discord Oficial:** [discord.gg/rv3vtXZTk7](https://discord.gg/rv3vtXZTk7)
+> * 🌐 **Portal Web & Guía:** [web.drakescraft.cl](https://web.drakescraft.cl)
+> * 🛒 **Tienda Oficial:** [drakescraft-v2.tebex.io](https://drakescraft-v2.tebex.io)
 
 ---
 
