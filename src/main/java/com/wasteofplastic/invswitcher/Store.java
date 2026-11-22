@@ -93,6 +93,8 @@ public class Store {
     /** Number of in-flight saves per offline player, so a pending object is only evicted once the
      *  last of its saves has flushed. Mutated only on the main thread (see {@link #saveStorage}). */
     private final Map<UUID, Integer> pendingSaveCount = new ConcurrentHashMap<>();
+    /** Players whose advancements are currently being restored by {@link #setAdvancements}. */
+    private final Set<UUID> restoringAdvancements = ConcurrentHashMap.newKeySet();
 
     public Store(InvSwitcher addon) {
         this.addon = addon;
@@ -350,6 +352,17 @@ public class Store {
 
     }
 
+    /**
+     * Returns whether InvSwitcher is currently restoring saved advancements for the given player.
+     * Used by {@link com.wasteofplastic.invswitcher.listeners.PlayerListener} to suppress
+     * advancement broadcast messages while replaying criteria across world switches.
+     * @param playerId - player UUID
+     * @return true while {@link #setAdvancements} is executing for {@code playerId}
+     */
+    public boolean isRestoringAdvancements(UUID playerId) {
+        return playerId != null && restoringAdvancements.contains(playerId);
+    }
+
     private void setAdvancements(InventoryStorage store, Player player, String overworldName) {
         // Advancements
         Map<String, List<String>> advancements = store.getAdvancements(overworldName);
@@ -360,23 +373,34 @@ public class Store {
         // reward XP when their criteria are awarded, which would incorrectly increase the
         // player's experience points.
         int savedExp = getTotalExperience(player);
-        advancements.forEach((k, v) -> {
+        UUID playerId = player.getUniqueId();
+        restoringAdvancements.add(playerId);
+        try {
             Iterator<Advancement> it = Bukkit.advancementIterator();
             while (it.hasNext()) {
                 Advancement a = it.next();
-                if (a.getKey().toString().equals(k)) {
-                    // Award
-                    v.forEach(player.getAdvancementProgress(a)::awardCriteria);
+                List<String> criteria = advancements.get(a.getKey().toString());
+                if (criteria != null && !criteria.isEmpty()) {
+                    AdvancementProgress progress = player.getAdvancementProgress(a);
+                    for (String criterion : criteria) {
+                        if (!progress.getAwardedCriteria().contains(criterion)) {
+                            progress.awardCriteria(criterion);
+                        }
+                    }
                 }
             }
-        });
-        // Restore experience to prevent advancement rewards from modifying it
-        setTotalExperience(player, savedExp);
+        } finally {
+            restoringAdvancements.remove(playerId);
+            // Restore experience to prevent advancement rewards from modifying it
+            setTotalExperience(player, savedExp);
+        }
     }
 
     public void removeFromCache(Player player) {
-        cache.remove(player.getUniqueId());
-        currentKey.remove(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+        cache.remove(uuid);
+        currentKey.remove(uuid);
+        restoringAdvancements.remove(uuid);
     }
 
     /**

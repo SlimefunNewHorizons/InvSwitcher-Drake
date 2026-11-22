@@ -1037,4 +1037,44 @@ class StoreTest {
         verify(db, never()).saveObject(any(InventoryStorage.class));
     }
 
+    @Test
+    void testRestoringAdvancementsFlagIsActiveDuringRestoreAndClearedAfter() {
+        sets.setAdvancements(true);
+        sets.setExperience(true);
+        sets.setStatistics(false);
+        sets.setIslandsActive(false);
+
+        Advancement advancement = mock(Advancement.class);
+        NamespacedKey advKey = NamespacedKey.minecraft("story/mine_stone");
+        when(advancement.getKey()).thenReturn(advKey);
+
+        AdvancementProgress progress = mock(AdvancementProgress.class);
+        Set<String> awarded = new HashSet<>(Set.of("mine_stone"));
+        when(progress.getAwardedCriteria()).thenReturn(awarded);
+        when(player.getAdvancementProgress(advancement)).thenReturn(progress);
+
+        boolean[] flagDuringAward = {false};
+        when(progress.revokeCriteria("mine_stone")).thenAnswer(inv -> {
+            awarded.remove("mine_stone");
+            return true;
+        });
+        when(progress.awardCriteria("mine_stone")).thenAnswer(inv -> {
+            flagDuringAward[0] = s.isRestoringAdvancements(playerUUID);
+            awarded.add("mine_stone");
+            return true;
+        });
+
+        try (MockedStatic<Bukkit> mockedBukkit = mockStatic(Bukkit.class, Mockito.RETURNS_MOCKS)) {
+            mockedBukkit.when(Bukkit::advancementIterator).thenAnswer(inv -> List.of(advancement).iterator());
+
+            s.storeInventory(player, world);
+            assertFalse(s.isRestoringAdvancements(playerUUID));
+
+            s.getInventory(player, world);
+        }
+
+        assertTrue(flagDuringAward[0], "isRestoringAdvancements must be true during awardCriteria");
+        assertFalse(s.isRestoringAdvancements(playerUUID), "isRestoringAdvancements must be cleared after restore");
+    }
+
 }

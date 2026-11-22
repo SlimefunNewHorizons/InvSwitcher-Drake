@@ -13,6 +13,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.world.WorldLoadEvent;
@@ -93,6 +94,19 @@ public class PlayerListener implements Listener {
             sender.sendMessage(sender.locale().getLanguage().equals("es")
                     ? "§cSolo puedes pagar a jugadores de tu misma modalidad."
                     : "§cYou can only pay players in your own game mode.");
+        }
+    }
+
+    /**
+     * Suppresses advancement chat announcements while InvSwitcher is restoring saved
+     * advancements on a world/modality switch, without touching global world gamerules.
+     * Running at LOWEST ensures downstream chat/Discord plugins also see message() == null.
+     * @param event - advancement done event
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onAdvancementDone(final PlayerAdvancementDoneEvent event) {
+        if (addon.getStore().isRestoringAdvancements(event.getPlayer().getUniqueId())) {
+            event.message(null);
         }
     }
 

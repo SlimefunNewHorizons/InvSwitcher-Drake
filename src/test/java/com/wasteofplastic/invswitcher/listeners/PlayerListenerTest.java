@@ -20,6 +20,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -698,6 +699,28 @@ class PlayerListenerTest {
 
         pl.onPlayerQuit(new PlayerQuitEvent(player, ""));
         verify(player, never()).closeInventory();
+    }
+
+    @Test
+    void testOnAdvancementDoneSilencesMessageWhileRestoring() {
+        PlayerAdvancementDoneEvent event = mock(PlayerAdvancementDoneEvent.class);
+        when(event.getPlayer()).thenReturn(player);
+        when(store.isRestoringAdvancements(playerUUID)).thenReturn(true);
+
+        pl.onAdvancementDone(event);
+
+        verify(event).message(null);
+    }
+
+    @Test
+    void testOnAdvancementDonePreservesMessageForNormalAdvancements() {
+        PlayerAdvancementDoneEvent event = mock(PlayerAdvancementDoneEvent.class);
+        when(event.getPlayer()).thenReturn(player);
+        when(store.isRestoringAdvancements(playerUUID)).thenReturn(false);
+
+        pl.onAdvancementDone(event);
+
+        verify(event, never()).message(any());
     }
 
 }
