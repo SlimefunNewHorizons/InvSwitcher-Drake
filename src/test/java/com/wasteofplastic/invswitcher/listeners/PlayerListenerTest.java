@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockbukkit.mockbukkit.MockBukkit;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -699,6 +701,44 @@ class PlayerListenerTest {
 
         pl.onPlayerQuit(new PlayerQuitEvent(player, ""));
         verify(player, never()).closeInventory();
+    }
+
+    /**
+     * Closing an open Ender Chest during a world change must not sync it: player.getWorld()
+     * already returns the destination world, so the sync would overwrite the destination
+     * world's stored Ender Chest with the source world's contents.
+     */
+    @Test
+    void testWorldEnterWithOpenEnderChestDoesNotSyncToDestination() {
+        when(settings.isEnderChest()).thenReturn(true);
+        Inventory top = mock(Inventory.class);
+        when(top.getType()).thenReturn(InventoryType.ENDER_CHEST);
+        InventoryView openView = mock(InventoryView.class);
+        when(openView.getTopInventory()).thenReturn(top);
+        when(openView.getPlayer()).thenReturn(player);
+        when(player.getOpenInventory()).thenReturn(openView);
+        when(store.getStorageKey(player, world)).thenReturn("world");
+        when(store.getStorageKey(player, notWorld)).thenReturn("notWorld");
+        // Simulate Bukkit firing InventoryCloseEvent synchronously from closeInventory()
+        doAnswer(inv -> {
+            pl.onEnderChestClose(new InventoryCloseEvent(openView));
+            return null;
+        }).when(player).closeInventory();
+
+        try (MockedStatic<Util> mockedUtil = mockStatic(Util.class, Mockito.RETURNS_MOCKS)) {
+            when(Util.sameWorld(world, notWorld)).thenReturn(false);
+            pl.onWorldEnter(new PlayerChangedWorldEvent(player, notWorld));
+        }
+
+        verify(player).closeInventory();
+        verify(store, never()).syncEnderChest(any(), any());
+        InOrder order = Mockito.inOrder(store);
+        order.verify(store).storeInventory(player, notWorld);
+        order.verify(store).getInventory(player, world);
+
+        // A normal (player-initiated) close afterwards still syncs
+        pl.onEnderChestClose(new InventoryCloseEvent(openView));
+        verify(store).syncEnderChest(player, world);
     }
 
     @Test
