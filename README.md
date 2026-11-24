@@ -1,3 +1,9 @@
+<!-- credits:start -->
+> **Credits & license.** Port and maintenance by [JackStar6677-1](https://github.com/JackStar6677-1) and [DrakesCraft Labs](https://github.com/SlimefunNewHorizons). Original authors: [tastybento](https://github.com/tastybento), [BONNe](https://github.com/BONNe), [wellnesscookie](https://github.com/wellnesscookie). Upstream license: **Eclipse Public License 2.0** (see [LICENSE](LICENSE)). Details: [docs/UPSTREAM_ATTRIBUTION.md](docs/UPSTREAM_ATTRIBUTION.md) · Policy: [Rights & Attribution](https://github.com/SlimefunNewHorizons/.github/blob/main/RIGHTS_AND_ATTRIBUTION.md). Independent community project, not affiliated with or endorsed by the original authors or the official Slimefun team.
+>
+> **Créditos y licencia.** Port y mantenimiento por [JackStar6677-1](https://github.com/JackStar6677-1) y [DrakesCraft Labs](https://github.com/SlimefunNewHorizons). Autores originales: [tastybento](https://github.com/tastybento), [BONNe](https://github.com/BONNe), [wellnesscookie](https://github.com/wellnesscookie). Licencia original: **Eclipse Public License 2.0**. Detalle en [docs/UPSTREAM_ATTRIBUTION.md](docs/UPSTREAM_ATTRIBUTION.md).
+<!-- credits:end -->
+
 > [!WARNING]
 > ### ⚠️ ARCHIVADO / CONSOLIDADO EN DRAKES-SUITES (`26.x`)
 > Este repositorio ha sido consolidado de forma definitiva en el monorepo oficial:  
